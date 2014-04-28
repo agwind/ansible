@@ -1,0 +1,13 @@
+if(rs.conf() === null) {
+	printjson ("Initializing");
+	rs.initiate()
+	printjson ("Sleeping");
+	sleep(13000)
+} 
+{% for host in groups['all'] %}
+printjson("Adding {{ host }}");
+rs.add("{{ host }}")
+printjson("Sleeping");
+sleep(8000)
+{% endfor %}
+printjson(rs.status())

@@ -16,13 +16,35 @@
       - mongodb-server
   - name: Create the hosts file for all machines
     template: src=templates/hosts.j2 dest=/etc/hosts
+  - name: immediately update the hostname
+    command: hostname -v {{ inventory_hostname }}
+  - name: persist the hostname
+    lineinfile: dest=/etc/sysconfig/network
+                regexp=^HOSTNAME=
+                line=HOSTNAME={{ inventory_hostname }}
+                state=present
   - name: Create the data directory 
     file: path={{ data_dir }} owner=mongodb group=root state=directory mode=0755
+  - name: Setup mongod.conf
+    template: src=templates/mongodb.conf.j2 dest=/etc/mongodb.conf
+    notify:
+    - restart mongodb
+  - name: Ensure mongod is running
+    service: name=mongod state=started
+  handlers:
+    - name: restart mongodb
+      service: name=mongod state=restarted
+# Let's run init on only one server
+- hosts: all[0]
+  remote_user: ec2-user
+  sudo: yes
+  tasks:
+  - name: Let's pause waiting for mongodb to start initialzing after first run
+    pause: seconds=60
+  - name: Create the replication set init script
+    template: src=templates/rs_init.js.j2 dest=/tmp/rs_init.js
+#TODO FIXME We should build up a $config to rs.conf, or rs.reconf so that drop nodes come out when rerunning
+  - name: Initialize replication set
+    command: /usr/bin/mongo /tmp/rs_init.js
 
-#    notify:
-#    - restart apache
-#  - name: ensure apache is running
-#    service: name=httpd state=started
-#  handlers:
-#    - name: restart apache
-#      service: name=httpd state=restarted
+
